@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Medidor HC-SR04 Interactivo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: banda oscura de cabecera tipo placa PCB, luego secciones apiladas; el simulador es la pieza central */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --ink:#14212b; --muted:#5c6b75; --line:#d9e0e4;
+  --board:#122130; --board-ink:#e8f1f4; --accent:#1a8a8a; --accent-soft:#e1f2f1;
+  --green:#22a35a; --amber:#e0a400; --red:#d93b3b; --blue:#2f6fd6; --purple:#7a4fd0;
+  --code-bg:#122130; --code-ink:#d6e4ea; --code-cm:#7d97a6;
+  --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d151c; --surface:#15212b; --ink:#e3ecf0; --muted:#93a5b0; --line:#273846;
+  --board:#081017; --board-ink:#e8f1f4; --accent:#4cc3be; --accent-soft:#163536;
+  --code-bg:#081017; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d151c; --surface:#15212b; --ink:#e3ecf0; --muted:#93a5b0; --line:#273846;
+  --board:#081017; --board-ink:#e8f1f4; --accent:#4cc3be; --accent-soft:#163536;
+  --code-bg:#081017; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.hero{background:var(--board);color:var(--board-ink);
+  background-image:radial-gradient(circle,rgba(76,195,190,.12) 1px,transparent 1.5px);background-size:18px 18px}
+header.hero .wrap{padding-block:40px 32px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#4cc3be}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,5vw,46px);line-height:1.08;margin:10px 0 12px;text-wrap:balance;max-width:20ch}
+.hero p{max-width:62ch;color:#b9cbd3;margin:0 0 18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--f-mono);font-size:12px;border:1px solid #2e4556;border-radius:99px;padding:4px 12px;color:#cfe0e6}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{font:500 14px var(--f-body);background:none;border:0;color:var(--muted);padding:14px 12px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+main .wrap{padding-block:28px 48px}
+section.panel{display:flex;flex-direction:column;gap:20px}
+h2{font-family:var(--f-display);font-weight:700;font-size:26px;margin:0;display:flex;align-items:baseline;gap:10px}
+h2 .n{font-family:var(--f-mono);color:var(--accent);font-size:18px}
+.lead{color:var(--muted);margin:0;max-width:68ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.mono{font-family:var(--f-mono)}
+.small{font-size:13px;color:var(--muted)}
+
+/* Simulador */
+.sim{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.sim{grid-template-columns:1fr}}
+.scene{background:var(--board);border-radius:12px;padding:18px;color:var(--board-ink);display:flex;flex-direction:column;gap:14px}
+.scene svg{width:100%;height:auto;display:block}
+.readout{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end}
+.big{font-family:var(--f-display);font-weight:800;font-size:52px;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:20px;font-weight:600;color:#9fb6c0;margin-left:4px}
+.meta{font-family:var(--f-mono);font-size:12px;color:#9fb6c0;line-height:1.7}
+.meta b{color:var(--board-ink);font-weight:500}
+input[type=range]{width:100%;accent-color:#4cc3be}
+.ctrl{display:flex;flex-direction:column;gap:6px}
+.ctrl label{font-size:13px;color:#b9cbd3;display:flex;justify-content:space-between}
+.side{display:flex;flex-direction:column;gap:14px}
+.leds{display:flex;gap:18px;justify-content:space-around;align-items:center}
+.led{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.led i{width:30px;height:38px;border-radius:15px 15px 4px 4px;background:var(--c);opacity:.18;transition:opacity .15s, box-shadow .15s}
+.led.on i{opacity:1;box-shadow:0 0 18px var(--c),0 0 4px var(--c)}
+.buzz i{width:34px;height:34px;border-radius:50%;background:#1d1d1d;border:3px solid #444;opacity:1}
+.buzz.on i{box-shadow:0 0 0 6px rgba(217,59,59,.35);animation:pulse .35s infinite alternate}
+@keyframes pulse{to{box-shadow:0 0 0 12px rgba(217,59,59,.1)}}
+.serial{background:var(--code-bg);color:#8be3a5;font-family:var(--f-mono);font-size:13px;border-radius:8px;padding:10px 12px;height:170px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.serial-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.state{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;font-family:var(--f-mono)}
+.btn{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.thr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.thr .ctrl label{color:var(--muted)}
+
+/* Conexiones */
+.pins{display:flex;flex-direction:column;gap:8px}
+.pin{display:grid;grid-template-columns:120px 1fr 110px;align-items:center;gap:10px;cursor:pointer;border-radius:8px;padding:4px;border:1px solid transparent;background:none;color:inherit;font:inherit;text-align:left}
+.pin:hover,.pin.sel{border-color:var(--line);background:var(--accent-soft)}
+.pin .a{background:var(--board);color:#fff;font-family:var(--f-mono);font-size:13px;padding:6px 8px;border-radius:5px;text-align:center}
+.pin .b{border:1.5px solid var(--ink);font-family:var(--f-mono);font-size:13px;padding:5px 8px;border-radius:5px;text-align:center}
+.pin .w{height:4px;border-radius:2px;background:var(--wc)}
+.pin.sel .w{height:7px}
+@media (max-width:460px){.pin{grid-template-columns:96px 1fr 80px}}
+.detail{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 8px 8px 0;font-size:14px;min-height:64px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+th{background:var(--board);color:#e8f1f4;text-align:left;font-weight:600;padding:10px 12px;font-size:13px}
+td{padding:9px 12px;border-top:1px solid var(--line)}
+td:first-child{font-family:var(--f-mono)}
+
+/* Materiales y pasos */
+.check{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}
+.check .q{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.check strong{display:block}
+.check.done strong{text-decoration:line-through;color:var(--muted)}
+.progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.progress span{display:block;height:100%;background:var(--accent);transition:width .25s}
+.step{display:flex;flex-direction:column;gap:6px}
+.step .num{width:28px;height:28px;border-radius:50%;background:var(--board);color:#fff;display:grid;place-items:center;font-family:var(--f-mono);font-size:13px}
+.step.done{border-color:var(--accent);background:var(--accent-soft)}
+.step.done .num{background:var(--accent)}
+.step p{margin:0;font-size:14px;color:var(--muted)}
+
+/* Protoboard */
+.bb svg{width:100%;height:auto;display:block}
+.bbwrap{overflow-x:auto}
+.legend{display:flex;flex-direction:column;gap:10px}
+.legend .card{padding:12px 14px;font-size:14px;cursor:pointer}
+.legend .card.sel{border-color:var(--accent);background:var(--accent-soft)}
+.hl{stroke:var(--accent)!important;stroke-width:3!important}
+
+/* Código */
+.codewrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.codewrap{grid-template-columns:1fr}}
+pre.code{background:var(--code-bg);color:var(--code-ink);font-family:var(--f-mono);font-size:13px;line-height:1.6;padding:16px;border-radius:10px;overflow-x:auto;margin:0}
+pre.code .cm{color:var(--code-cm)} pre.code .kw{color:#7fd1ff} pre.code .nb{color:#ffcf7a}
+pre.code .ln{display:block;border-radius:3px;padding:0 4px;margin:0 -4px}
+pre.code .ln.mark{background:rgba(76,195,190,.18)}
+.explain .card{cursor:pointer}
+.explain .card.sel{border-color:var(--accent);background:var(--accent-soft)}
+.explain h4{margin:0 0 4px;font-family:var(--f-mono);font-size:14px}
+.explain p{margin:0;font-size:14px;color:var(--muted)}
+.formula{font-family:var(--f-mono);background:var(--bg);border:1px solid var(--line);padding:6px 10px;border-radius:6px;margin-top:8px;display:inline-block;font-size:13px}
+
+/* Problemas */
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+details summary{cursor:pointer;font-weight:600}
+details p{margin:8px 0 0;color:var(--muted)}
+.quiz .opt{display:block;width:100%;text-align:left;margin-top:8px}
+.quiz .opt.ok{border-color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)}
+.quiz .opt.bad{border-color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent)}
+footer{background:var(--board);color:#9fb6c0;font-family:var(--f-mono);font-size:12px}
+footer .wrap{padding-block:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">Proyecto de electrónica · Nivel básico</div>
+  <h1>Medidor de distancia con Arduino UNO y sensor ultrasónico</h1>
+  <p>El sensor HC-SR04 mide la distancia a un objeto; el Arduino la muestra en el Monitor Serie y la indica con un semáforo de LEDs y un zumbador que suena cuando algo está muy cerca. Mueve el objeto en el simulador para ver cómo responde el circuito.</p>
+  <div class="chips"><span class="chip">Arduino UNO R3</span><span class="chip">HC-SR04 · 2–400 cm</span><span class="chip">Protoboard de 830 puntos</span><span class="chip">Tiempo de armado: 45–60 min</span></div>
+</div></header>
+
+<nav class="tabs" aria-label="Secciones"><div class="wrap" role="tablist">
+  <button role="tab" data-tab="sim" aria-selected="true">Simulador</button>
+  <button role="tab" data-tab="mat">Materiales</button>
+  <button role="tab" data-tab="con">Conexiones</button>
+  <button role="tab" data-tab="bb">Protoboard</button>
+  <button role="tab" data-tab="steps">Construcción</button>
+  <button role="tab" data-tab="code">Código</button>
+  <button role="tab" data-tab="fix">Problemas y repaso</button>
+</div></nav>
+
+<main><div class="wrap">
+
+<!-- SIMULADOR -->
+<section class="panel" id="sim">
+  <h2><span class="n">01</span>Simulador del sistema</h2>
+  <p class="lead">Arrastra el control para acercar o alejar el objeto. El Arduino envía un pulso, mide cuánto tarda el eco y decide qué salida activar.</p>
+  <div class="sim">
+    <div class="scene">
+      <svg viewBox="0 0 560 170" role="img" aria-label="Sensor emitiendo ondas hacia un objeto">
+        <rect x="8" y="50" width="70" height="70" rx="6" fill="#2f6fd6"/>
+        <circle cx="30" cy="85" r="14" fill="#cfd6dc" stroke="#7d8a94" stroke-width="3"/>
+        <circle cx="58" cy="85" r="14" fill="#cfd6dc" stroke="#7d8a94" stroke-width="3"/>
+        <text x="43" y="138" fill="#9fb6c0" font-size="11" text-anchor="middle" font-family="IBM Plex Mono, monospace">HC-SR04</text>
+        <g id="waves" fill="none" stroke="#4cc3be" stroke-width="2"></g>
+        <line x1="90" y1="150" x2="548" y2="150" stroke="#2e4556" stroke-width="1"/>
+        <g id="ticks"></g>
+        <g id="obj"><rect x="0" y="40" width="22" height="90" rx="3" fill="#e0a400"/><text x="11" y="32" fill="#e8f1f4" font-size="11" text-anchor="middle" font-family="IBM Plex Sans, sans-serif">objeto</text></g>
+      </svg>
+      <div class="ctrl">
+        <label for="dist"><span>Distancia al objeto</span><span class="mono" id="distLbl">45 cm</span></label>
+        <input type="range" id="dist" min="2" max="420" value="45">
+      </div>
+      <div class="readout">
+        <div class="big" id="bigD">45<small>cm</small></div>
+        <div class="meta">
+          tiempo de eco (ida y vuelta): <b id="tEcho">2610 µs</b><br>
+          cálculo: <b id="calc">2610 ÷ 58 = 45 cm</b><br>
+          estado: <span class="state" id="stateTag">Verde</span>
+        </div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <div class="leds">
+          <div class="led" id="ledV" style="--c:var(--green)"><i></i>D4 · verde</div>
+          <div class="led" id="ledA" style="--c:var(--amber)"><i></i>D5 · amarillo</div>
+          <div class="led" id="ledR" style="--c:var(--red)"><i></i>D6 · rojo</div>
+          <div class="led buzz" id="buzz"><i></i>D7 · buzzer</div>
+        </div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:8px">
+        <div class="serial-head"><span>Monitor Serie · 9600 baudios</span>
+          <span class="row"><button class="btn" id="sndBtn" type="button">Activar sonido</button><button class="btn" id="runBtn" type="button">Pausar</button></span></div>
+        <div class="serial" id="serial" aria-live="off"></div>
+      </div>
+      <div class="card">
+        <div class="small" style="margin-bottom:8px">Ajusta los rangos (cambian también el código)</div>
+        <div class="thr">
+          <div class="ctrl"><label for="tRed"><span>Alarma ≤</span><span class="mono" id="tRedL">10 cm</span></label><input type="range" id="tRed" min="3" max="50" value="10"></div>
+          <div class="ctrl"><label for="tAmb"><span>Amarillo ≤</span><span class="mono" id="tAmbL">30 cm</span></label><input type="range" id="tAmb" min="10" max="150" value="30"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid g3">
+    <div class="card"><div class="eyebrow" style="color:var(--accent)">Entrada</div><strong>Sensor HC-SR04</strong><p class="small" style="margin:4px 0 0">Emite un pulso ultrasónico por TRIG y devuelve por ECHO un pulso cuya duración es el tiempo de ida y vuelta del sonido.</p></div>
+    <div class="card"><div class="eyebrow" style="color:var(--accent)">Procesamiento</div><strong>Arduino UNO</strong><p class="small" style="margin:4px 0 0">Mide el pulso con <span class="mono">pulseIn()</span>, calcula <span class="mono">distancia = tiempo(µs) ÷ 58</span> y decide qué salida activar.</p></div>
+    <div class="card"><div class="eyebrow" style="color:var(--accent)">Salidas</div><strong>LEDs, buzzer y Monitor Serie</strong><p class="small" style="margin:4px 0 0">Verde lejos, amarillo intermedio, rojo y pitido muy cerca. Alimentación: PC → USB → Arduino 5 V → rieles. Todo comparte GND.</p></div>
+  </div>
+</section>
+
+<!-- MATERIALES -->
+<section class="panel" id="mat" hidden>
+  <h2><span class="n">02</span>Materiales</h2>
+  <p class="lead">Marca cada elemento cuando lo tengas en la mesa del grupo.</p>
+  <div class="progress"><span id="matProg" style="width:0"></span></div>
+  <div class="small" id="matTxt">0 de 8 listos</div>
+  <div class="grid g4" id="matList"></div>
+  <p class="small">Software: Arduino IDE 2.x (gratuito). Los LEDs y el buzzer son opcionales: el medidor funciona solo con el sensor y el Monitor Serie.</p>
+</section>
+
+<!-- CONEXIONES -->
+<section class="panel" id="con" hidden>
+  <h2><span class="n">03</span>Conexiones de pines</h2>
+  <p class="lead">Toca una conexión para ver qué hace y cómo se conecta.</p>
+  <div class="grid g2">
+    <div class="card"><strong>Sensor HC-SR04 → Arduino</strong><div class="pins" id="pinsA" style="margin-top:12px"></div><p class="small" style="margin:10px 0 0">Color del cable: rojo = 5 V · negro = GND · amarillo = TRIG · azul = ECHO</p></div>
+    <div class="card"><strong>Salidas → Arduino</strong><div class="pins" id="pinsB" style="margin-top:12px"></div><p class="small" style="margin:10px 0 0">Cada LED: pata corta (−) → resistencia 220 Ω → riel GND. Buzzer (−) → riel GND.</p></div>
+  </div>
+  <div class="detail" id="pinDetail">Selecciona una conexión.</div>
+  <div class="tbl"><table>
+    <thead><tr><th>Pin Arduino</th><th>Componente</th><th>Modo</th><th>Función</th></tr></thead>
+    <tbody>
+      <tr><td>5V / GND</td><td>Rieles + / −</td><td>Alimentación</td><td>Energía para todo el circuito</td></tr>
+      <tr><td>D9</td><td>HC-SR04 TRIG</td><td>OUTPUT</td><td>Dispara el pulso de 10 µs</td></tr>
+      <tr><td>D10</td><td>HC-SR04 ECHO</td><td>INPUT</td><td>Recibe la duración del eco</td></tr>
+      <tr><td>D4 · D5 · D6</td><td>LEDs V · A · R</td><td>OUTPUT</td><td>Semáforo de distancia</td></tr>
+      <tr><td>D7</td><td>Buzzer</td><td>OUTPUT</td><td>Alarma con tone()</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- PROTOBOARD -->
+<section class="panel" id="bb" hidden>
+  <h2><span class="n">04</span>Estructura física en la protoboard</h2>
+  <p class="lead">Toca una tarjeta de la derecha para resaltar esa parte de la protoboard.</p>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+    <div class="card bbwrap bb" style="grid-column:span 2;min-width:0">
+      <svg viewBox="0 0 640 280" id="bbsvg" style="min-width:520px">
+        <rect x="4" y="4" width="632" height="272" rx="10" fill="#e9ecee" stroke="#b9c2c8"/>
+        <g id="rTop"><line x1="30" y1="22" x2="560" y2="22" stroke="#d93b3b" stroke-width="3"/><line x1="30" y1="38" x2="560" y2="38" stroke="#2f6fd6" stroke-width="3"/>
+          <text x="568" y="26" font-size="11" fill="#5c6b75" font-family="IBM Plex Mono">riel 5 V</text><text x="568" y="42" font-size="11" fill="#5c6b75" font-family="IBM Plex Mono">riel GND</text></g>
+        <g id="rBot"><line x1="30" y1="242" x2="560" y2="242" stroke="#2f6fd6" stroke-width="3"/><line x1="30" y1="258" x2="560" y2="258" stroke="#d93b3b" stroke-width="3"/>
+          <text x="568" y="246" font-size="11" fill="#5c6b75" font-family="IBM Plex Mono">riel GND</text><text x="568" y="262" font-size="11" fill="#5c6b75" font-family="IBM Plex Mono">riel 5 V</text></g>
+        <rect id="canal" x="20" y="136" width="600" height="8" fill="#cfd6dc"/>
+        <g id="cols"></g>
+        <g id="sensorBB"><rect x="30" y="60" width="130" height="150" rx="8" fill="#2f6fd6" id="sensorRect"/>
+          <circle cx="68" cy="98" r="22" fill="#cfd6dc"/><circle cx="122" cy="98" r="22" fill="#cfd6dc"/>
+          <text x="95" y="148" font-size="13" fill="#fff" text-anchor="middle" font-family="Archivo" font-weight="700">HC-SR04</text>
+          <text x="95" y="170" font-size="9" fill="#dce8ff" text-anchor="middle" font-family="IBM Plex Mono">VCC  TRIG  ECHO  GND</text>
+          <text x="95" y="192" font-size="9" fill="#dce8ff" text-anchor="middle" font-family="IBM Plex Mono">Columnas 1–4, fila E</text></g>
+        <g font-family="IBM Plex Mono" font-size="10" text-anchor="middle" fill="#14212b">
+          <g><rect x="180" y="60" width="90" height="70" rx="6" fill="#fff"/><path d="M212 100 v-18 a13 13 0 0 1 26 0 v18z" fill="#22a35a"/><text x="225" y="118">LED V · col 12–13</text></g>
+          <g><rect x="280" y="60" width="90" height="70" rx="6" fill="#fff"/><path d="M312 100 v-18 a13 13 0 0 1 26 0 v18z" fill="#e0a400"/><text x="325" y="118">LED A · col 17–18</text></g>
+          <g><rect x="380" y="60" width="90" height="70" rx="6" fill="#fff"/><path d="M412 100 v-18 a13 13 0 0 1 26 0 v18z" fill="#d93b3b"/><text x="425" y="118">LED R · col 22–23</text></g>
+          <g><rect x="480" y="60" width="90" height="70" rx="6" fill="#fff"/><circle cx="525" cy="88" r="15" fill="#1d1d1d"/><text x="525" y="118">Buzzer · col 28–30</text></g>
+          <g fill="#5c6b75"><text x="225" y="170">220 Ω → riel −</text><text x="325" y="170">220 Ω → riel −</text><text x="425" y="170">220 Ω → riel −</text><text x="525" y="170">(−) → riel GND</text></g>
+        </g>
+        <path id="orient" d="M30 56 h130" stroke="none" fill="none"/>
+      </svg>
+    </div>
+    <div class="legend" id="bbLegend">
+      <div class="card" data-hl="cols"><strong>Columnas</strong> (los números): los 5 orificios de una misma columna, A–E o F–J, están conectados entre sí.</div>
+      <div class="card" data-hl="rails"><strong>Rieles laterales</strong> (+ y −): recorren toda la protoboard; ahí van 5 V y GND.</div>
+      <div class="card" data-hl="canal"><strong>Canal central</strong>: separa las mitades. Nunca conectes dos pines del sensor en la misma columna.</div>
+      <div class="card" data-hl="sensor"><strong>Orientación</strong>: coloca el sensor en el borde, con los "ojos" hacia afuera y sin obstáculos delante.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PASOS -->
+<section class="panel" id="steps" hidden>
+  <h2><span class="n">05</span>Construcción paso a paso</h2>
+  <p class="lead">Toca cada paso cuando el grupo lo termine. Siempre con el USB desconectado hasta el paso 8.</p>
+  <div class="progress"><span id="stepProg" style="width:0"></span></div>
+  <div class="row"><span class="small" id="stepTxt">0 de 9 pasos</span><button class="btn" id="stepReset" type="button">Reiniciar</button></div>
+  <div class="grid g3" id="stepList"></div>
+</section>
+
+<!-- CÓDIGO -->
+<section class="panel" id="code" hidden>
+  <h2><span class="n">06</span>Código para Arduino IDE</h2>
+  <p class="lead">Toca una explicación para resaltar su parte del código. Los rangos coinciden con los que fijaste en el simulador.</p>
+  <div class="row"><button class="btn primary" id="copyBtn" type="button">Copiar código</button><span class="small" id="copyMsg"></span></div>
+  <div class="codewrap">
+    <pre class="code" id="codeBox"></pre>
+    <div class="explain grid" id="explain">
+      <div class="card" data-r="setup"><h4>setup()</h4><p>Abre el puerto serie a 9600 baudios y define qué pines son entradas y cuáles salidas.</p></div>
+      <div class="card" data-r="medir"><h4>medirDistancia()</h4><p>Envía un pulso de 10 µs por TRIG; pulseIn() cuenta cuánto dura el pulso en ECHO.</p></div>
+      <div class="card" data-r="div"><h4>¿Por qué ÷ 58?</h4><p>El sonido viaja a 0,0343 cm/µs y recorre ida y vuelta.</p><span class="formula">d = t × 0,0343 ÷ 2 = t ÷ 58</span></div>
+      <div class="card" data-r="loop"><h4>loop()</h4><p>Cada 200 ms mide, imprime el valor y enciende el LED del rango. Por debajo del límite de alarma, suena el buzzer.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEMAS -->
+<section class="panel" id="fix" hidden>
+  <h2><span class="n">07</span>Si algo no funciona</h2>
+  <div class="grid g2">
+    <details><summary>Siempre marca 400 cm</summary><p>TRIG y ECHO intercambiados, o VCC/GND sin conectar. Revisa D9 → TRIG y D10 → ECHO.</p></details>
+    <details><summary>Lecturas que saltan</summary><p>Superficies blandas o en ángulo absorben el eco. Prueba con una pared o un libro de frente.</p></details>
+    <details><summary>Un LED no enciende</summary><p>Está al revés: la pata larga va al pin del Arduino y la corta a la resistencia.</p></details>
+    <details><summary>No se sube el código</summary><p>Revisa Placa y Puerto en el menú Herramientas, y que el cable USB sea de datos.</p></details>
+  </div>
+  <h2 style="margin-top:12px"><span class="n">✓</span>Repaso rápido</h2>
+  <div class="grid g2 quiz" id="quiz"></div>
+  <div class="small" id="quizScore"></div>
+</section>
+
+</div></main>
+<footer><div class="wrap"><span>Arduino UNO · HC-SR04 · Protoboard</span><span>Arma siempre con el USB desconectado</span></div></footer>
+
+<script>
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* Tabs */
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function showTab(id){tabs.forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===id));
+  document.querySelectorAll('section.panel').forEach(s=>s.hidden=s.id!==id);store.set('tab',id)}
+tabs.forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);window.scrollTo({top:$('nav.tabs').offsetTop,behavior:'smooth'})}));
+const h=location.hash.slice(1);showTab(tabs.some(b=>b.dataset.tab===h)?h:store.get('tab','sim'));
+
+/* Simulador */
+let thrR=10,thrA=30,running=true,sound=false,actx=null,beepT=0;
+const X0=90,X1=540,MAXD=420;
+const xOf=d=>X0+(Math.min(d,MAXD)/MAXD)*(X1-X0-22);
+const ticks=$('#ticks');
+[0,100,200,300,400].forEach(v=>{const x=xOf(v);ticks.insertAdjacentHTML('beforeend',`<line x1="${x}" y1="146" x2="${x}" y2="154" stroke="#4d6676"/><text x="${x}" y="166" fill="#7d97a6" font-size="10" text-anchor="middle" font-family="IBM Plex Mono">${v}</text>`)});
+function measured(d){return d>400?400:Math.round(d)} // fuera de rango → 400 como en el código
+function update(){
+  const raw=+$('#dist').value, d=measured(raw);
+  $('#obj').setAttribute('transform',`translate(${xOf(raw)},0)`);
+  const w=$('#waves');w.innerHTML='';const end=xOf(raw);
+  for(let x=95;x<end-6;x+=26)w.insertAdjacentHTML('beforeend',`<path d="M${x} 62 q10 23 0 46" opacity="${1-(x-95)/(end-80)*.7}"/>`);
+  const t=raw>400?30000:Math.round(raw*58);
+  $('#distLbl').textContent=raw+' cm';
+  $('#bigD').innerHTML=d+'<small>cm</small>';
+  $('#tEcho').textContent=raw>400?'sin eco (timeout 30 ms)':t+' µs';
+  $('#calc').textContent=raw>400?'devuelve 400 (fuera de rango)':`${t} ÷ 58 = ${d} cm`;
+  const v=d>thrA,a=d>thrR&&d<=thrA,r=d<=thrR;
+  $('#ledV').classList.toggle('on',v);$('#ledA').classList.toggle('on',a);$('#ledR').classList.toggle('on',r);$('#buzz').classList.toggle('on',r);
+  const tag=$('#stateTag');tag.textContent=r?'Rojo + alarma':a?'Amarillo':'Verde';
+  tag.style.background=r?'var(--red)':a?'var(--amber)':'var(--green)';tag.style.color=a?'#14212b':'#fff';
+  return {d,r};
+}
+const serial=$('#serial');
+function tick(){if(!running)return;const {d,r}=update();
+  const line=document.createElement('div');line.textContent='Distancia: '+d+' cm';serial.appendChild(line);
+  while(serial.children.length>8)serial.firstChild.remove();
+  if(r&&sound)beep();}
+function beep(){try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();
+  const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=1000;g.gain.value=.06;o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+.1)}catch(e){}}
+setInterval(tick,200);
+$('#dist').addEventListener('input',update);
+$('#runBtn').onclick=()=>{running=!running;$('#runBtn').textContent=running?'Pausar':'Reanudar'};
+$('#sndBtn').onclick=()=>{sound=!sound;$('#sndBtn').textContent=sound?'Silenciar':'Activar sonido';if(sound)beep()};
+function setThr(){thrR=+$('#tRed').value;thrA=Math.max(+$('#tAmb').value,thrR+1);
+  $('#tRedL').textContent=thrR+' cm';$('#tAmbL').textContent=thrA+' cm';update();renderCode()}
+$('#tRed').oninput=setThr;$('#tAmb').oninput=setThr;
+
+/* Materiales */
+const mats=[['×1','Arduino UNO R3','Microcontrolador ATmega328P'],['×1','Sensor HC-SR04','Ultrasónico, 5 V, 40 kHz'],['×1','Protoboard','830 o 400 puntos'],['×1','Cable USB A–B','Alimentación y programación'],['×3','LEDs 5 mm','Verde, amarillo y rojo'],['×3','Resistencias 220 Ω','Rojo-rojo-marrón, para los LEDs'],['×1','Buzzer pasivo 5 V','Alarma de proximidad'],['×12 aprox.','Cables jumper M-M','Rojo, negro, amarillo, azul y otros']];
+let matDone=store.get('mat',[]);
+function renderMat(){$('#matList').innerHTML=mats.map((m,i)=>`<label class="card check ${matDone.includes(i)?'done':''}"><input type="checkbox" id="mat${i}" data-i="${i}" ${matDone.includes(i)?'checked':''}><span><span class="q">${m[0]}</span><strong>${m[1]}</strong><span class="small">${m[2]}</span></span></label>`).join('');
+  $('#matProg').style.width=matDone.length/mats.length*100+'%';$('#matTxt').textContent=`${matDone.length} de ${mats.length} listos`}
+$('#matList').addEventListener('change',e=>{const i=+e.target.dataset.i;matDone=e.target.checked?[...matDone,i]:matDone.filter(x=>x!==i);store.set('mat',matDone);renderMat()});
+renderMat();
+
+/* Conexiones */
+const pinsA=[['VCC','5V (riel +)','#d93b3b','VCC alimenta el sensor con 5 V. Cable rojo desde la columna de VCC al riel +.'],['TRIG','D9','#e0a400','TRIG recibe del Arduino un pulso de 10 µs que hace que el sensor emita la ráfaga ultrasónica. Cable amarillo a D9 (OUTPUT).'],['ECHO','D10','#2f6fd6','ECHO devuelve un pulso en alto mientras el sonido va y vuelve. Cable azul a D10 (INPUT); pulseIn() mide su duración.'],['GND','GND (riel −)','#1d1d1d','GND cierra el circuito. Cable negro al riel −. Todo el circuito comparte esta tierra.']];
+const pinsB=[['LED verde (+)','D4','#22a35a','Se enciende cuando el objeto está lejos (más del rango amarillo). Pata larga a D4, pata corta → 220 Ω → GND.'],['LED amarillo (+)','D5','#e0a400','Se enciende en el rango intermedio. Pata larga a D5, pata corta → 220 Ω → GND.'],['LED rojo (+)','D6','#d93b3b','Se enciende cuando el objeto está muy cerca. Pata larga a D6, pata corta → 220 Ω → GND.'],['Buzzer (+)','D7','#7a4fd0','Suena con tone(BUZZER, 1000, 100) cuando hay alarma. Terminal (+) a D7, terminal (−) al riel GND.']];
+function pinHtml(arr,g){return arr.map((p,i)=>`<button class="pin" type="button" data-g="${g}" data-i="${i}"><span class="a">${p[0]}</span><span class="w" style="--wc:${p[2]}"></span><span class="b">${p[1]}</span></button>`).join('')}
+$('#pinsA').innerHTML=pinHtml(pinsA,'A');$('#pinsB').innerHTML=pinHtml(pinsB,'B');
+document.querySelectorAll('.pin').forEach(b=>b.onclick=()=>{document.querySelectorAll('.pin').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');
+  const p=(b.dataset.g==='A'?pinsA:pinsB)[b.dataset.i];$('#pinDetail').innerHTML=`<strong>${p[0]} → ${p[1]}</strong><br>${p[3]}`});
+
+/* Protoboard */
+const cols=$('#cols');for(let c=0;c<30;c++){const x=40+c*19;for(let r=0;r<5;r++){cols.insertAdjacentHTML('beforeend',`<rect x="${x}" y="${208+(r%1)}" width="0" height="0"/>`)}}
+cols.innerHTML='';for(let c=0;c<30;c++){const x=40+c*19.3;cols.insertAdjacentHTML('beforeend',`<rect class="colbar" x="${x}" y="182" width="7" height="44" rx="2" fill="none" stroke="#b9c2c8" stroke-width="1"/>`)}
+document.querySelectorAll('#bbLegend .card').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('#bbLegend .card').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
+  document.querySelectorAll('#bbsvg .hl').forEach(e=>e.classList.remove('hl'));
+  const k=c.dataset.hl;
+  if(k==='cols')document.querySelectorAll('.colbar').forEach(e=>e.classList.add('hl'));
+  if(k==='rails')document.querySelectorAll('#rTop line,#rBot line').forEach(e=>e.classList.add('hl'));
+  if(k==='canal')$('#canal').classList.add('hl');
+  if(k==='sensor')$('#sensorRect').classList.add('hl');
+});
+
+/* Pasos */
+const steps=[['Alimenta los rieles','Con el USB desconectado, une 5V del Arduino al riel + (cable rojo) y GND al riel − (cable negro).'],['Inserta el sensor','Coloca el HC-SR04 en las columnas 1–4, fila E, cada pin en su propia columna y mirando hacia afuera.'],['Energiza el sensor','Desde la columna de VCC un jumper al riel +; desde la de GND un jumper al riel −.'],['Conecta las señales','TRIG al pin D9 (cable amarillo) y ECHO al pin D10 (cable azul).'],['Monta los LEDs','Pata larga (+) en una columna, pata corta (−) en la siguiente. De la pata corta, una resistencia de 220 Ω al riel −.'],['Cablea los LEDs','Pata larga del verde a D4, del amarillo a D5 y del rojo a D6.'],['Agrega el buzzer','Terminal (+) al pin D7 y terminal (−) al riel GND.'],['Revisa y carga','Verifica cada cable con la tabla. Conecta el USB; en Arduino IDE elige Placa "Arduino Uno" y su puerto, y pulsa Subir.'],['Prueba','Abre el Monitor Serie a 9600 baudios y acerca la mano al sensor: la distancia y los LEDs deben cambiar.']];
+let stDone=store.get('steps',[]);
+function renderSteps(){$('#stepList').innerHTML=steps.map((s,i)=>`<label class="card step ${stDone.includes(i)?'done':''}"><span class="row" style="justify-content:space-between"><span class="num">${stDone.includes(i)?'✓':i+1}</span><input type="checkbox" id="st${i}" data-i="${i}" ${stDone.includes(i)?'checked':''} style="accent-color:var(--accent);width:18px;height:18px"></span><strong>${s[0]}</strong><p>${s[1]}</p></label>`).join('');
+  $('#stepProg').style.width=stDone.length/steps.length*100+'%';$('#stepTxt').textContent=stDone.length===steps.length?'¡Circuito terminado! Pasa al simulador para comparar.':`${stDone.length} de ${steps.length} pasos`}
+$('#stepList').addEventListener('change',e=>{const i=+e.target.dataset.i;stDone=e.target.checked?[...stDone,i]:stDone.filter(x=>x!==i);store.set('steps',stDone);renderSteps()});
+$('#stepReset').onclick=()=>{stDone=[];store.set('steps',stDone);renderSteps()};
+renderSteps();
+
+/* Código */
+function codeLines(){return [
+['','// Medidor de distancia - Arduino UNO + HC-SR04'],['','const int TRIG   = 9;'],['','const int ECHO   = 10;'],['','const int LED_V  = 4;   // verde'],['','const int LED_A  = 5;   // amarillo'],['','const int LED_R  = 6;   // rojo'],['','const int BUZZER = 7;'],['',''],
+['setup','void setup() {'],['setup','  Serial.begin(9600);'],['setup','  pinMode(TRIG, OUTPUT);'],['setup','  pinMode(ECHO, INPUT);'],['setup','  pinMode(LED_V, OUTPUT);'],['setup','  pinMode(LED_A, OUTPUT);'],['setup','  pinMode(LED_R, OUTPUT);'],['setup','  pinMode(BUZZER, OUTPUT);'],['setup','}'],['',''],
+['medir','long medirDistancia() {'],['medir','  digitalWrite(TRIG, LOW);'],['medir','  delayMicroseconds(2);'],['medir','  digitalWrite(TRIG, HIGH);        // pulso de 10 us'],['medir','  delayMicroseconds(10);'],['medir','  digitalWrite(TRIG, LOW);'],['medir','  long t = pulseIn(ECHO, HIGH, 30000); // espera max. 30 ms'],['medir','  if (t == 0) return 400;          // sin eco: fuera de rango'],['div','  return t / 58;                   // microsegundos a cm'],['medir','}'],['',''],
+['loop','void loop() {'],['loop','  long d = medirDistancia();'],['loop','  Serial.print("Distancia: ");'],['loop','  Serial.print(d);'],['loop','  Serial.println(" cm");'],['loop',''],
+['loop',`  digitalWrite(LED_V, d > ${thrA});`],['loop',`  digitalWrite(LED_A, d > ${thrR} && d <= ${thrA});`],['loop',`  digitalWrite(LED_R, d <= ${thrR});`],['loop',''],
+['loop',`  if (d <= ${thrR}) tone(BUZZER, 1000, 100); // pitido`],['loop','  else noTone(BUZZER);'],['loop',''],['loop','  delay(200);'],['loop','}']]}
+let mark='';
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hl(s){let c='';const i=s.indexOf('//');if(i>=0){c='<span class="cm">'+esc(s.slice(i))+'</span>';s=s.slice(0,i)}
+  return esc(s).replace(/\b(const|int|long|void|if|else|return)\b/g,'<span class="kw">$1</span>').replace(/\b(\d+)\b/g,'<span class="nb">$1</span>')+c}
+function renderCode(){$('#codeBox').innerHTML=codeLines().map(([r,l])=>`<span class="ln ${mark&&r===mark?'mark':''}">${hl(l)||' '}</span>`).join('')}
+document.querySelectorAll('#explain .card').forEach(c=>c.onclick=()=>{mark=mark===c.dataset.r?'':c.dataset.r;
+  document.querySelectorAll('#explain .card').forEach(x=>x.classList.toggle('sel',x.dataset.r===mark));renderCode()});
+renderCode();
+$('#copyBtn').onclick=()=>{const txt=codeLines().map(x=>x[1]).join('\n');
+  navigator.clipboard.writeText(txt).then(()=>$('#copyMsg').textContent='Código copiado. Pégalo en Arduino IDE.').catch(()=>{
+    const r=document.createRange();r.selectNodeContents($('#codeBox'));const s=getSelection();s.removeAllRanges();s.addRange(r);$('#copyMsg').textContent='Código seleccionado: usa Ctrl+C para copiarlo.'})};
+
+/* Quiz */
+const qs=[['¿A qué pin del Arduino va TRIG?',['D9','D10','D7'],0,'TRIG es salida del Arduino (OUTPUT) en D9.'],['Si el eco tarda 1160 µs, ¿a qué distancia está el objeto?',['10 cm','20 cm','58 cm'],1,'1160 ÷ 58 = 20 cm.'],['¿Por qué se divide entre 2 en la fórmula?',['Porque hay dos ojos en el sensor','Porque el sonido va y vuelve','Porque el Arduino trabaja a 5 V'],1,'El tiempo medido incluye la ida y la vuelta del sonido.'],['Un LED no enciende. ¿Qué revisas primero?',['La velocidad del Monitor Serie','La polaridad: pata larga al pin','El valor del delay'],1,'Un LED al revés no conduce.']];
+let score={};
+$('#quiz').innerHTML=qs.map((q,i)=>`<div class="card"><strong>${i+1}. ${q[0]}</strong>${q[1].map((o,j)=>`<button class="btn opt" type="button" data-q="${i}" data-o="${j}">${o}</button>`).join('')}<p class="small fb" id="fb${i}" style="margin:8px 0 0"></p></div>`).join('');
+$('#quiz').addEventListener('click',e=>{const b=e.target.closest('.opt');if(!b)return;const i=+b.dataset.q,j=+b.dataset.o,q=qs[i];
+  b.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.remove('ok','bad'));
+  b.classList.add(j===q[2]?'ok':'bad');$('#fb'+i).textContent=(j===q[2]?'Correcto. ':'Revisa: ')+q[3];
+  score[i]=j===q[2];const n=Object.values(score).filter(Boolean).length;$('#quizScore').textContent=`Aciertos: ${n} de ${qs.length}`});
+update();
+</script>
+</body>
+</html>
